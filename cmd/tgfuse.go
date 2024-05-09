@@ -1,7 +1,13 @@
 package main
 
-import "fmt"
+import (
+	"log"
+
+	"telegram-fuse/cmd/app"
+)
 
 func main() {
-	fmt.Println("Hello world!")
+	if err := app.RootCmd.Execute(); err != nil {
+		log.Fatalf("couldn't start program: %s", err)
+	}
 }
