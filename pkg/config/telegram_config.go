@@ -16,7 +16,7 @@ type TelegramConfig struct {
 	ChatId int64
 }
 
-// InitTelegramConfigFromFile reads config file and initializes server config.
+// InitTelegramConfigFromFile reads config file and initializes telegram config.
 func InitTelegramConfigFromFile(path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -30,7 +30,7 @@ func InitTelegramConfigFromFile(path string) error {
 	return nil
 }
 
-// initFromString initializes server config from a slice of bytes.
+// initFromString initializes telegram config from a slice of bytes.
 func initFromString(data []byte) error {
 	var cfg TelegramConfig
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
