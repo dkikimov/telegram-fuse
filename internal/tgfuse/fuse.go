@@ -13,6 +13,7 @@ import (
 type Node struct {
 	fs.Inode
 	storage usecase.Storage
+	name    string
 }
 
 func NewNode(storage usecase.Storage) *Node {
@@ -20,13 +21,29 @@ func NewNode(storage usecase.Storage) *Node {
 }
 
 var _ = (fs.InodeEmbedder)((*Node)(nil))
+
+var _ = (fs.NodeAccesser)((*Node)(nil))
+
+func (n *Node) Access(ctx context.Context, mask uint32) syscall.Errno {
+	return syscall.F_OK
+}
+
 var _ = (fs.NodeLookuper)((*Node)(nil))
 
 func (n *Node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
-	ops := Node{}
-	out.Mode = 0755
-	out.Size = 42
-	return n.NewInode(ctx, &ops, fs.StableAttr{Mode: syscall.S_IFREG}), 0
+	if n.GetChild(name) != nil {
+		return n.GetChild(name), 0
+	}
+
+	// ops := Node{
+	// 	name: name,
+	// }
+	// out.Mode = 0755
+	// out.Size = 42
+	//
+	// return n.NewInode(ctx, &ops, fs.StableAttr{Mode: syscall.S_IFREG}), 0
+
+	return nil, syscall.ENOENT
 }
 
 var _ = (fs.NodeOnAdder)((*Node)(nil))

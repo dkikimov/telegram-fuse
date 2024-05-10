@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"syscall"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -86,7 +85,7 @@ var RootCmd = &cobra.Command{
 		server.Wait()
 
 		// TODO: catch signal
-		if err := syscall.Unmount(config.FuseCfg.MountPath, 0); err != nil {
+		if err := server.Unmount(); err != nil {
 			return fmt.Errorf("couldn't unmount fuse: %s", err)
 		}
 
