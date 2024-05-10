@@ -12,8 +12,8 @@ var TelegramCfg *TelegramConfig
 
 // TelegramConfig represents the configuration for the Telegram bot.
 type TelegramConfig struct {
-	Token  string
-	ChatId int64
+	Token  string `yaml:"token"`
+	ChatId int64  `yaml:"chat_id"`
 }
 
 // InitTelegramConfigFromFile reads config file and initializes telegram config.
