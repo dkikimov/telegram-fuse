@@ -12,8 +12,8 @@ var TelegramCfg *TelegramConfig
 
 // TelegramConfig represents the configuration for the Telegram bot.
 type TelegramConfig struct {
-	Token  string
-	ChatId int64
+	Token  string `yaml:"token"`
+	ChatId int64  `yaml:"chat_id"`
 }
 
 // InitTelegramConfigFromFile reads config file and initializes telegram config.
@@ -23,15 +23,15 @@ func InitTelegramConfigFromFile(path string) error {
 		return err
 	}
 
-	if err := initFromString(data); err != nil {
+	if err := initTelegramFromString(data); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-// initFromString initializes telegram config from a slice of bytes.
-func initFromString(data []byte) error {
+// initTelegramFromString initializes telegram config from a slice of bytes.
+func initTelegramFromString(data []byte) error {
 	var cfg TelegramConfig
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return fmt.Errorf("unable to unmarshal config file: %w", err)
