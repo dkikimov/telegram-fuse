@@ -6,14 +6,20 @@ import (
 
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
+
+	"telegram-fuse/internal/usecase"
 )
 
 type Node struct {
 	fs.Inode
+	storage usecase.Storage
+}
+
+func NewNode(storage usecase.Storage) *Node {
+	return &Node{storage: storage}
 }
 
 var _ = (fs.InodeEmbedder)((*Node)(nil))
-
 var _ = (fs.NodeLookuper)((*Node)(nil))
 
 func (n *Node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {

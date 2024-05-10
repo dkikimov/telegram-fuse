@@ -7,11 +7,14 @@ import (
 	"syscall"
 	"time"
 
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
 	"github.com/spf13/cobra"
 
+	"telegram-fuse/internal/repository/sqlite"
 	"telegram-fuse/internal/tgfuse"
+	"telegram-fuse/internal/usecase/telegram"
 	"telegram-fuse/pkg/config"
 )
 
@@ -32,8 +35,13 @@ var RootCmd = &cobra.Command{
 	Use:   "tgfuse",
 	Short: "tgfuse is a fuse implementation for telegram bot",
 	RunE: func(_ *cobra.Command, _ []string) error {
+		// Init cfg
 		if _, err := os.Stat(telegramCfgFile); err != nil {
 			return fmt.Errorf("unable to read config file %s: %w", telegramCfgFile, err)
+		}
+
+		if _, err := os.Stat(fuseCfgFile); err != nil {
+			return fmt.Errorf("unable to read config file %s: %w", fuseCfgFile, err)
 		}
 
 		if err := config.InitTelegramConfigFromFile(telegramCfgFile); err != nil {
@@ -44,8 +52,23 @@ var RootCmd = &cobra.Command{
 			return fmt.Errorf("unable to init fuse config: %w", err)
 		}
 
+		// Init database
+		db, err := sqlite.NewDatabase()
+		if err != nil {
+			return fmt.Errorf("couldn't initialize database with error: %w", err)
+		}
+
+		// Init telegram bot
+		api, err := tgbotapi.NewBotAPI(config.TelegramCfg.Token)
+		if err != nil {
+			return fmt.Errorf("couldn't initialize bot with error: %w", err)
+		}
+
+		bot := telegram.NewBot(api, db)
+
+		// Init fuse
 		timeout := time.Second
-		server, err := fs.Mount(config.FuseCfg.MountPath, &tgfuse.Node{}, &fs.Options{
+		server, err := fs.Mount(config.FuseCfg.MountPath, tgfuse.NewNode(bot), &fs.Options{
 			MountOptions: fuse.MountOptions{
 				Debug: config.FuseCfg.Debug,
 			},
