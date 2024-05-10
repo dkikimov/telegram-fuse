@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"syscall"
 	"time"
 
 	"github.com/hanwen/go-fuse/v2/fs"
@@ -61,6 +62,12 @@ var RootCmd = &cobra.Command{
 		go server.Serve()
 		server.Wait()
 
+		// TODO: catch signal
+		if err := syscall.Unmount(config.FuseCfg.MountPath, 0); err != nil {
+			return fmt.Errorf("couldn't unmount fuse: %s", err)
+		}
+
+		slog.Info("unmounted fuse")
 		return nil
 	},
 }
