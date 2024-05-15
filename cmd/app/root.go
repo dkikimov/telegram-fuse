@@ -54,7 +54,7 @@ var RootCmd = &cobra.Command{
 			return fmt.Errorf("unable to init fuse config: %w", err)
 		}
 
-		if err := config.InitDatabaseConfigFromFile(fuseCfgFile); err != nil {
+		if err := config.InitDatabaseConfigFromFile(databaseCfgFile); err != nil {
 			return fmt.Errorf("unable to init fuse config: %w", err)
 		}
 
