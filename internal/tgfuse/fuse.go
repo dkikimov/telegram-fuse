@@ -12,12 +12,17 @@ import (
 
 type Node struct {
 	fs.Inode
+	id      int
 	storage usecase.Storage
 	name    string
 }
 
 func NewNode(storage usecase.Storage) *Node {
 	return &Node{storage: storage}
+}
+
+var defaultAttr = fs.StableAttr{
+	Mode: 0777,
 }
 
 var _ = (fs.InodeEmbedder)((*Node)(nil))
@@ -35,14 +40,6 @@ func (n *Node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs
 		return n.GetChild(name), 0
 	}
 
-	// ops := Node{
-	// 	name: name,
-	// }
-	// out.Mode = 0755
-	// out.Size = 42
-	//
-	// return n.NewInode(ctx, &ops, fs.StableAttr{Mode: syscall.S_IFREG}), 0
-
 	return nil, syscall.ENOENT
 }
 
@@ -54,8 +51,16 @@ func (n *Node) OnAdd(ctx context.Context) {
 
 var _ = (fs.NodeCreater)((*Node)(nil))
 
-func (n *Node) Create(ctx context.Context, name string, flags uint32, mode uint32, out *fuse.EntryOut) (node *fs.Inode, fh fs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
-	return nil, nil, 0, syscall.ENOSYS
+func (n *Node) Create(ctx context.Context, name string, _ uint32, _ uint32, out *fuse.EntryOut) (node *fs.Inode, fh fs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
+	fileId, err := n.storage.SaveFile(n.id, name, []byte("empty"))
+	if err != nil {
+		return nil, nil, 0, syscall.EAGAIN
+	}
+
+	node = n.NewInode(ctx, n.EmbeddedInode(), defaultAttr)
+	fh = NewFile(fileId, n.storage)
+
+	return node, fh, 0, 0
 }
 
 var _ = (fs.NodeMkdirer)((*Node)(nil))
@@ -100,4 +105,10 @@ var _ = (fs.NodeWriter)((*Node)(nil))
 
 func (n *Node) Write(ctx context.Context, f fs.FileHandle, data []byte, off int64) (written uint32, errno syscall.Errno) {
 	return 0, syscall.ENOSYS
+}
+
+var _ = (fs.NodeGetattrer)((*Node)(nil))
+
+func (n *Node) Getattr(ctx context.Context, f fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
+	return 0
 }
