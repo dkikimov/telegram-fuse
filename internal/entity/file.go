@@ -5,10 +5,10 @@ import "time"
 // FilesystemEntity represents a file or directory in the system.
 type FilesystemEntity struct {
 	// ID is the unique identifier of the entity.
-	Id uint64
+	Id int
 
 	// ParentID is the unique identifier of the parent directory.
-	ParentId uint64
+	ParentId int
 
 	// Name is the name of the entity. Only for file.
 	Name string
@@ -30,7 +30,15 @@ type FilesystemEntity struct {
 	UpdatedAt time.Time
 }
 
-func NewFile(id, parentId uint64, name string, size int, messageID int, fileID string, createdAt, updatedAt time.Time) FilesystemEntity {
+func (f FilesystemEntity) IsDirectory() bool {
+	if len(f.FileID) == 0 {
+		return true
+	}
+
+	return false
+}
+
+func NewFile(id, parentId int, name string, size int, messageID int, fileID string, createdAt, updatedAt time.Time) FilesystemEntity {
 	return FilesystemEntity{
 		Id:        id,
 		ParentId:  parentId,
@@ -43,7 +51,7 @@ func NewFile(id, parentId uint64, name string, size int, messageID int, fileID s
 	}
 }
 
-func NewDirectory(id, parentId uint64, name string, createdAt, updatedAt time.Time) FilesystemEntity {
+func NewDirectory(id, parentId int, name string, createdAt, updatedAt time.Time) FilesystemEntity {
 	return FilesystemEntity{
 		Id:        id,
 		ParentId:  parentId,
