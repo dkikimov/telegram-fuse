@@ -75,20 +75,25 @@ func (n *Node) OnAdd(ctx context.Context) {
 
 var _ = (fs.NodeCreater)((*Node)(nil))
 
-func (n *Node) Create(ctx context.Context, name string, _ uint32, _ uint32, out *fuse.EntryOut) (node *fs.Inode, fh fs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
+func (n *Node) Create(ctx context.Context, name string, _ uint32, _ uint32, out *fuse.EntryOut) (*fs.Inode, fs.FileHandle, uint32, syscall.Errno) {
 	fileId, err := n.storage.SaveFile(n.Id, name, []byte("empty"))
 	if err != nil {
 		return nil, nil, 0, syscall.EAGAIN
 	}
 
-	node = n.NewInode(ctx, n.EmbeddedInode(), defaultAttr)
-	fh = NewFile(fileId, n.storage)
+	node := Node{
+		Id:      fileId,
+		storage: n.storage,
+		name:    name,
+	}
+
+	fh := NewFile(fileId, n.storage)
 
 	out.Mode = defaultAttr.Mode
 	out.NodeId = uint64(fileId)
 	out.Size = uint64(len("empty"))
 
-	return node, fh, 0, 0
+	return n.NewInode(ctx, node.EmbeddedInode(), defaultAttr), fh, 0, 0
 }
 
 var _ = (fs.NodeMkdirer)((*Node)(nil))
