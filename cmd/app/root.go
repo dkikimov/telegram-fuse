@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"time"
 
+	"bazil.org/fuse"
+	"bazil.org/fuse/fs"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/hanwen/go-fuse/v2/fs"
-	"github.com/hanwen/go-fuse/v2/fuse"
 	"github.com/spf13/cobra"
 
 	"telegram-fuse/internal/tgfuse"
@@ -75,30 +74,25 @@ var RootCmd = &cobra.Command{
 		bot := telegram.NewBot(api, db)
 
 		// Init fuse
-		timeout := time.Second
-		server, err := fs.Mount(config.FuseCfg.MountPath, tgfuse.NewNode(bot), &fs.Options{
-			MountOptions: fuse.MountOptions{
-				Debug: config.FuseCfg.Debug,
-			},
-			EntryTimeout: &timeout,
-			AttrTimeout:  &timeout,
-		})
-
+		c, err := fuse.Mount(config.FuseCfg.MountPath)
 		if err != nil {
 			return fmt.Errorf("couldn't mount fuse: %w", err)
 		}
+		defer c.Close()
 
 		slog.Info("mounted fuse")
 
-		go server.Serve()
-		server.Wait()
-
-		// TODO: catch signal
-		if err := server.Unmount(); err != nil {
-			return fmt.Errorf("couldn't unmount fuse: %s", err)
+		filesystem := &tgfuse.Filesystem{
+			Id:      0,
+			Storage: bot,
 		}
 
-		slog.Info("unmounted fuse")
+		if err := fs.Serve(c, filesystem); err != nil {
+			return fmt.Errorf("couldn't serve fuse: %w", err)
+		}
+
+		slog.Info("served fuse filesystem")
+
 		return nil
 	},
 }
