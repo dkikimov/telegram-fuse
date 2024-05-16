@@ -13,7 +13,7 @@ create table file_entities (
 
 create index entity_parent_name on file_entities(parent_id, name);
 
-insert into file_entities (id, parent_id, name) values (0, 0, 'root');
+insert into file_entities (id, parent_id, name) values (0, -1, 'root');
 
 -- +goose StatementEnd
 

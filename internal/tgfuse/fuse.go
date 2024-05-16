@@ -37,8 +37,31 @@ func (n *Node) Access(ctx context.Context, mask uint32) syscall.Errno {
 var _ = (fs.NodeLookuper)((*Node)(nil))
 
 func (n *Node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
-	if n.GetChild(name) != nil {
-		return n.GetChild(name), 0
+	if n.IsDir() == false {
+		if name == n.name {
+			return n.NewInode(ctx, n.EmbeddedInode(), defaultAttr), 0
+		} else {
+			return nil, syscall.ENOENT
+		}
+	}
+
+	// Check if the file exists in the directory
+	fileId, err := n.storage.GetDirectoryChildren(n.Id)
+	if err != nil {
+		slog.Info("failed to get directory children", "error", err)
+		return nil, syscall.EAGAIN
+	}
+
+	for _, file := range fileId {
+		if file.Name == name {
+			node := Node{
+				Id:      file.Id,
+				storage: n.storage,
+				name:    file.Name,
+			}
+
+			return n.NewInode(ctx, node.EmbeddedInode(), defaultAttr), 0
+		}
 	}
 
 	return nil, syscall.ENOENT
