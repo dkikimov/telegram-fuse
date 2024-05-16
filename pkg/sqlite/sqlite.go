@@ -56,17 +56,13 @@ func (d *Database) SaveEntity(filesystemEntity entity.FilesystemEntity) (int, er
 	return id, nil
 }
 
-func (d *Database) GetDirectoryChildren(filesystemEntity entity.FilesystemEntity) ([]entity.FilesystemEntity, error) {
-	if !filesystemEntity.IsDirectory() {
-		return nil, fmt.Errorf("filesystemEntity is not a directory")
-	}
-
+func (d *Database) GetDirectoryChildren(id int) ([]entity.FilesystemEntity, error) {
 	stmt, err := d.DB.Prepare("SELECT id, parent_id, name, file_size, message_id, file_id, created_at, updated_at FROM file_entities WHERE parent_id = ?")
 	if err != nil {
 		return nil, fmt.Errorf("couldn't prepare get directory children statement: %w", err)
 	}
 
-	rows, err := stmt.Query(filesystemEntity.Id)
+	rows, err := stmt.Query(id)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't execute get directory children statement: %w", err)
 	}

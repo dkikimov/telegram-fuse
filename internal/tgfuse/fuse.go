@@ -2,6 +2,7 @@ package tgfuse
 
 import (
 	"context"
+	"log/slog"
 	"syscall"
 
 	"github.com/hanwen/go-fuse/v2/fs"
@@ -12,7 +13,7 @@ import (
 
 type Node struct {
 	fs.Inode
-	id      int
+	Id      int
 	storage usecase.Storage
 	name    string
 }
@@ -52,13 +53,17 @@ func (n *Node) OnAdd(ctx context.Context) {
 var _ = (fs.NodeCreater)((*Node)(nil))
 
 func (n *Node) Create(ctx context.Context, name string, _ uint32, _ uint32, out *fuse.EntryOut) (node *fs.Inode, fh fs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
-	fileId, err := n.storage.SaveFile(n.id, name, []byte("empty"))
+	fileId, err := n.storage.SaveFile(n.Id, name, []byte("empty"))
 	if err != nil {
 		return nil, nil, 0, syscall.EAGAIN
 	}
 
 	node = n.NewInode(ctx, n.EmbeddedInode(), defaultAttr)
 	fh = NewFile(fileId, n.storage)
+
+	out.Mode = defaultAttr.Mode
+	out.NodeId = uint64(fileId)
+	out.Size = uint64(len("empty"))
 
 	return node, fh, 0, 0
 }
@@ -72,13 +77,24 @@ func (n *Node) Mkdir(ctx context.Context, name string, mode uint32, out *fuse.En
 var _ = (fs.NodeOpener)((*Node)(nil))
 
 func (n *Node) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
-	return nil, 0, syscall.ENOSYS
+	fh = NewFile(n.Id, n.storage)
+	return fh, 0, 0
 }
 
 var _ = (fs.NodeReaddirer)((*Node)(nil))
 
 func (n *Node) Readdir(ctx context.Context) (fs.DirStream, syscall.Errno) {
-	return nil, syscall.ENOSYS
+	if n.IsDir() == false {
+		return nil, syscall.ENOTDIR
+	}
+
+	ent, err := n.storage.GetDirectoryChildren(n.Id)
+	if err != nil {
+		slog.Info("failed to get directory children", "error", err)
+		return nil, syscall.EAGAIN
+	}
+
+	return NewListDirStreamFromEntity(ent), 0
 }
 
 var _ = (fs.NodeReader)((*Node)(nil))

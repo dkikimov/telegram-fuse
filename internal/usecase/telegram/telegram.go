@@ -70,3 +70,7 @@ func (b *Bot) ReadFile(id int) ([]byte, error) {
 
 	return io.ReadAll(resp.Body)
 }
+
+func (b *Bot) GetDirectoryChildren(id int) ([]entity.FilesystemEntity, error) {
+	return b.db.GetDirectoryChildren(id)
+}

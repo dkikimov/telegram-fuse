@@ -10,7 +10,7 @@ type FilesystemEntity struct {
 	// ParentID is the unique identifier of the parent directory.
 	ParentId int
 
-	// Name is the name of the entity. Only for file.
+	// Name is the name of the entity.
 	Name string
 
 	// Size is the size of the entity in bytes. Only for file.
@@ -20,7 +20,7 @@ type FilesystemEntity struct {
 	MessageID int
 
 	// FileID is the unique identifier of the file in the telegram chat.
-	// It is used to download the file from the chat.
+	// It is used to download the file from the chat. Only for file.
 	FileID string
 
 	// CreatedAt is the time when the file was created.
