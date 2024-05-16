@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"syscall"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -12,24 +11,27 @@ import (
 	"github.com/hanwen/go-fuse/v2/fuse"
 	"github.com/spf13/cobra"
 
-	"telegram-fuse/internal/repository/sqlite"
 	"telegram-fuse/internal/tgfuse"
 	"telegram-fuse/internal/usecase/telegram"
 	"telegram-fuse/pkg/config"
+	"telegram-fuse/pkg/sqlite"
 )
 
 const (
 	defaultTelegramConfig = "/etc/telegram-fuse/telegram.yaml"
 	defaultFuseConfig     = "/etc/telegram-fuse/fuse.yaml"
+	defaultDatabaseConfig = "/etc/telegram-fuse/database.yaml"
 )
 
 func init() {
 	RootCmd.PersistentFlags().StringVar(&telegramCfgFile, "telegram-config", defaultTelegramConfig, "path to telegram config")
 	RootCmd.PersistentFlags().StringVar(&fuseCfgFile, "fuse-config", defaultFuseConfig, "path to fuse config")
+	RootCmd.PersistentFlags().StringVar(&databaseCfgFile, "database-config", defaultDatabaseConfig, "path to database config")
 }
 
 var telegramCfgFile string
 var fuseCfgFile string
+var databaseCfgFile string
 
 var RootCmd = &cobra.Command{
 	Use:   "tgfuse",
@@ -52,11 +54,17 @@ var RootCmd = &cobra.Command{
 			return fmt.Errorf("unable to init fuse config: %w", err)
 		}
 
-		// Init database
-		db, err := sqlite.NewDatabase()
-		if err != nil {
-			return fmt.Errorf("couldn't initialize database with error: %w", err)
+		if err := config.InitDatabaseConfigFromFile(databaseCfgFile); err != nil {
+			return fmt.Errorf("unable to init fuse config: %w", err)
 		}
+
+		// Init database
+		sql, err := sqlite.New()
+		if err != nil {
+			return fmt.Errorf("unable to init sqlite: %w", err)
+		}
+
+		db := sqlite.NewDatabase(sql)
 
 		// Init telegram bot
 		api, err := tgbotapi.NewBotAPI(config.TelegramCfg.Token)
@@ -86,7 +94,7 @@ var RootCmd = &cobra.Command{
 		server.Wait()
 
 		// TODO: catch signal
-		if err := syscall.Unmount(config.FuseCfg.MountPath, 0); err != nil {
+		if err := server.Unmount(); err != nil {
 			return fmt.Errorf("couldn't unmount fuse: %s", err)
 		}
 
