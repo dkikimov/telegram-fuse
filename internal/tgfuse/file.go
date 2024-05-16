@@ -2,6 +2,7 @@ package tgfuse
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 	"syscall"
 
@@ -17,29 +18,39 @@ type File struct {
 	storage usecase.Storage
 }
 
+func (f *File) Allocate(ctx context.Context, off uint64, size uint64, mode uint32) syscall.Errno {
+	return 0
+}
+
+func (f *File) Setattr(ctx context.Context, in *fuse.SetAttrIn, out *fuse.AttrOut) syscall.Errno {
+	return 0
+}
+
+func (f *File) Release(ctx context.Context) syscall.Errno {
+	return 0
+}
+
+func (f *File) Flush(ctx context.Context) syscall.Errno {
+	return 0
+}
+
 func NewFile(id int, storage usecase.Storage) *File {
 	return &File{id: id, storage: storage}
 }
 
 var _ = (fs.FileHandle)((*File)(nil))
 
-// var _ = (fs.FileReleaser)((*File)(nil))
-// var _ = (fs.FileGetattrer)((*File)(nil))
+var _ = (fs.FileReleaser)((*File)(nil))
 var _ = (fs.FileReader)((*File)(nil))
-
-// var _ = (fs.FileWriter)((*File)(nil))
-// var _ = (fs.FileGetlker)((*File)(nil))
-// var _ = (fs.FileSetlker)((*File)(nil))
-// var _ = (fs.FileSetlkwer)((*File)(nil))
-// var _ = (fs.FileLseeker)((*File)(nil))
-// var _ = (fs.FileFlusher)((*File)(nil))
-// var _ = (fs.FileFsyncer)((*File)(nil))
-// var _ = (fs.FileSetattrer)((*File)(nil))
-// var _ = (fs.FileAllocater)((*File)(nil))
+var _ = (fs.FileFlusher)((*File)(nil))
+var _ = (fs.FileSetattrer)((*File)(nil))
+var _ = (fs.FileAllocater)((*File)(nil))
 
 func (f *File) Read(ctx context.Context, buf []byte, off int64) (res fuse.ReadResult, errno syscall.Errno) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+
+	slog.Info("reading file", "id", f.id)
 
 	file, err := f.storage.ReadFile(f.id)
 	if err != nil {

@@ -18,11 +18,15 @@ type Bot struct {
 	db  repository.Repository
 }
 
+func (b *Bot) GetEntityById(id int) (entity.FilesystemEntity, error) {
+	return b.db.GetEntity(id)
+}
+
 func NewBot(api *tgbotapi.BotAPI, db repository.Repository) *Bot {
 	return &Bot{api: api, db: db}
 }
 
-func (b *Bot) SaveFile(parentId int, name string, data []byte) (int, error) {
+func (b *Bot) SaveFile(parentId int, name string, data []byte) (entity.FilesystemEntity, error) {
 	file := tgbotapi.FileBytes{
 		Name:  name,
 		Bytes: data,
@@ -33,7 +37,7 @@ func (b *Bot) SaveFile(parentId int, name string, data []byte) (int, error) {
 
 	message, err := b.api.Send(doc)
 	if err != nil {
-		return 0, fmt.Errorf("couldn't send message: %w", err)
+		return entity.FilesystemEntity{}, fmt.Errorf("couldn't send message: %w", err)
 	}
 
 	e := entity.FilesystemEntity{
@@ -44,11 +48,13 @@ func (b *Bot) SaveFile(parentId int, name string, data []byte) (int, error) {
 		FileID:    message.Document.FileID,
 	}
 
-	if _, err := b.db.SaveEntity(e); err != nil {
-		return 0, fmt.Errorf("couldn't save entity: %w", err)
+	entityId, err := b.db.SaveEntity(e)
+	if err != nil {
+		return entity.FilesystemEntity{}, fmt.Errorf("couldn't save entity: %w", err)
 	}
 
-	return 0, err
+	e.Id = entityId
+	return e, err
 }
 
 func (b *Bot) ReadFile(id int) ([]byte, error) {

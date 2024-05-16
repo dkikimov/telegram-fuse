@@ -13,13 +13,10 @@ import (
 
 type Node struct {
 	fs.Inode
-	Id      int
-	storage usecase.Storage
-	name    string
-}
-
-func NewNode(storage usecase.Storage) *Node {
-	return &Node{storage: storage}
+	Id       int
+	RootData *Root
+	Name     string
+	storage  usecase.Storage
 }
 
 var defaultAttr = fs.StableAttr{
@@ -38,7 +35,7 @@ var _ = (fs.NodeLookuper)((*Node)(nil))
 
 func (n *Node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
 	if n.IsDir() == false {
-		if name == n.name {
+		if name == n.Name {
 			return n.NewInode(ctx, n.EmbeddedInode(), defaultAttr), 0
 		} else {
 			return nil, syscall.ENOENT
@@ -54,13 +51,10 @@ func (n *Node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs
 
 	for _, file := range fileId {
 		if file.Name == name {
-			node := Node{
-				Id:      file.Id,
-				storage: n.storage,
-				name:    file.Name,
-			}
+			node := n.RootData.newNode(file)
+			ch := n.NewInode(ctx, node, defaultAttr)
 
-			return n.NewInode(ctx, node.EmbeddedInode(), defaultAttr), 0
+			return ch, 0
 		}
 	}
 
@@ -74,21 +68,20 @@ func (n *Node) OnAdd(ctx context.Context) {
 }
 
 var _ = (fs.NodeCreater)((*Node)(nil))
+var _ = fs.NodeCreater(&Node{})
 
-func (n *Node) Create(ctx context.Context, name string, _ uint32, _ uint32, out *fuse.EntryOut) (node *fs.Inode, fh fs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
-	fileId, err := n.storage.SaveFile(n.Id, name, []byte("empty"))
+func (n *Node) Create(ctx context.Context, name string, _ uint32, _ uint32, out *fuse.EntryOut) (*fs.Inode, fs.FileHandle, uint32, syscall.Errno) {
+	filesystemEntity, err := n.storage.SaveFile(n.Id, name, []byte("empty"))
 	if err != nil {
 		return nil, nil, 0, syscall.EAGAIN
 	}
 
-	node = n.NewInode(ctx, n.EmbeddedInode(), defaultAttr)
-	fh = NewFile(fileId, n.storage)
+	node := n.RootData.newNode(filesystemEntity)
+	ch := n.NewInode(ctx, node, defaultAttr)
 
-	out.Mode = defaultAttr.Mode
-	out.NodeId = uint64(fileId)
-	out.Size = uint64(len("empty"))
+	fh := NewFile(filesystemEntity.Id, n.storage)
 
-	return node, fh, 0, 0
+	return ch, fh, 0, 0
 }
 
 var _ = (fs.NodeMkdirer)((*Node)(nil))
@@ -100,7 +93,7 @@ func (n *Node) Mkdir(ctx context.Context, name string, mode uint32, out *fuse.En
 var _ = (fs.NodeOpener)((*Node)(nil))
 
 func (n *Node) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
-	fh = NewFile(n.Id, n.storage)
+	fh = NewFile(2, n.storage)
 	return fh, 0, 0
 }
 
@@ -118,12 +111,6 @@ func (n *Node) Readdir(ctx context.Context) (fs.DirStream, syscall.Errno) {
 	}
 
 	return NewListDirStreamFromEntity(ent), 0
-}
-
-var _ = (fs.NodeReader)((*Node)(nil))
-
-func (n *Node) Read(ctx context.Context, f fs.FileHandle, dest []byte, off int64) (fuse.ReadResult, syscall.Errno) {
-	return nil, syscall.ENOSYS
 }
 
 var _ = (fs.NodeRenamer)((*Node)(nil))
@@ -147,8 +134,14 @@ func (n *Node) Write(ctx context.Context, f fs.FileHandle, data []byte, off int6
 var _ = (fs.NodeGetattrer)((*Node)(nil))
 
 func (n *Node) Getattr(ctx context.Context, f fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
-	out.Mode = defaultAttr.Mode
-	out.Size = 0
+	filesystemEntity, err := n.storage.GetEntityById(n.Id)
+	if err != nil {
+		slog.Info("failed to get entity by id", "error", err)
+		return syscall.EAGAIN
+	}
+
+	filesystemEntity.SetAttr(&out.Attr)
+
 	return 0
 }
 
