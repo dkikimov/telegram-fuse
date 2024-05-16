@@ -115,8 +115,6 @@ func (n *Node) Rmdir(ctx context.Context, name string) syscall.Errno {
 	return syscall.ENOSYS
 }
 
-// var _ = (fs.NodeStatfser())((*Node)(nil))
-
 var _ = (fs.NodeWriter)((*Node)(nil))
 
 func (n *Node) Write(ctx context.Context, f fs.FileHandle, data []byte, off int64) (written uint32, errno syscall.Errno) {
@@ -126,5 +124,25 @@ func (n *Node) Write(ctx context.Context, f fs.FileHandle, data []byte, off int6
 var _ = (fs.NodeGetattrer)((*Node)(nil))
 
 func (n *Node) Getattr(ctx context.Context, f fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
+	out.Mode = defaultAttr.Mode
+	out.Size = 0
+	return 0
+}
+
+var _ = (fs.NodeStatfser)((*Node)(nil))
+
+func (n *Node) Statfs(ctx context.Context, out *fuse.StatfsOut) syscall.Errno {
+	out.Blocks = 1
+	out.Bfree = 1
+	out.Bavail = 1
+
+	return 0
+}
+
+var _ = (fs.NodeSetattrer)((*Node)(nil))
+
+func (n *Node) Setattr(ctx context.Context, f fs.FileHandle, in *fuse.SetAttrIn, out *fuse.AttrOut) syscall.Errno {
+	out.Mode = in.Mode
+	out.Size = in.Size
 	return 0
 }
