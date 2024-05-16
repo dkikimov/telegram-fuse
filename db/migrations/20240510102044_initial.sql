@@ -4,9 +4,9 @@ create table file_entities (
     id integer primary key autoincrement unique,
     parent_id integer not null references files(id) on delete cascade,
     name text not null,
-    message_id int,
-    file_id text,
-    file_size uint32,
+    message_id int default -1,
+    file_id text default '-1',
+    file_size uint32 default 0,
     created_at datetime not null default current_timestamp,
     updated_at datetime not null default current_timestamp
 );
