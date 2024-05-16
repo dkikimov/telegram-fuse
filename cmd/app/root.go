@@ -78,7 +78,7 @@ var RootCmd = &cobra.Command{
 
 		// Init fuse
 		timeout := time.Second
-		server, err := fs.Mount(config.FuseCfg.MountPath, tgfuse.NewNode(bot), &fs.Options{
+		server, err := fs.Mount(config.FuseCfg.MountPath, tgfuse.NewRoot(bot), &fs.Options{
 			MountOptions: fuse.MountOptions{
 				Debug: config.FuseCfg.Debug,
 			},
