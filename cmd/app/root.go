@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -90,15 +92,17 @@ var RootCmd = &cobra.Command{
 
 		slog.Info("mounted fuse")
 
-		go server.Serve()
+		c := make(chan os.Signal)
+		signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+		go func() {
+			<-c
+			server.Unmount()
+		}()
+
 		server.Wait()
 
-		// TODO: catch signal
-		if err := server.Unmount(); err != nil {
-			return fmt.Errorf("couldn't unmount fuse: %s", err)
-		}
-
 		slog.Info("unmounted fuse")
+
 		return nil
 	},
 }
