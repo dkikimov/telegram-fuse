@@ -18,6 +18,21 @@ type Bot struct {
 	db  repository.Repository
 }
 
+func (b *Bot) DeleteEntity(id int) error {
+	e, err := b.db.GetEntity(id)
+	if err != nil {
+		return fmt.Errorf("couldn't get entity: %w", err)
+	}
+
+	deleteMessageConfig := tgbotapi.NewDeleteMessage(config.TelegramCfg.ChatId, e.MessageID)
+	_, err = b.api.Request(deleteMessageConfig)
+	if err != nil {
+		return fmt.Errorf("couldn't delete message: %w", err)
+	}
+
+	return b.db.DeleteEntity(id)
+}
+
 func (b *Bot) SaveDirectory(parentId int, name string) (entity.FilesystemEntity, error) {
 	msg := tgbotapi.NewMessage(config.TelegramCfg.ChatId, fmt.Sprintf(
 		"%s %s",
