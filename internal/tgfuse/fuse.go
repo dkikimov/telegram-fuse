@@ -34,14 +34,6 @@ func (n *Node) Access(ctx context.Context, mask uint32) syscall.Errno {
 var _ = (fs.NodeLookuper)((*Node)(nil))
 
 func (n *Node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
-	if n.IsDir() == false {
-		if name == n.Name {
-			return n.NewInode(ctx, n.EmbeddedInode(), defaultAttr), 0
-		} else {
-			return nil, syscall.ENOENT
-		}
-	}
-
 	// Check if the file exists in the directory
 	fileId, err := n.storage.GetDirectoryChildren(n.Id)
 	if err != nil {
@@ -54,6 +46,7 @@ func (n *Node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs
 			node := n.RootData.newNode(file)
 			ch := n.NewInode(ctx, node, defaultAttr)
 
+			node.SetEntryOut(out)
 			return ch, 0
 		}
 	}
@@ -80,7 +73,7 @@ func (n *Node) Create(ctx context.Context, name string, _ uint32, _ uint32, out 
 
 	fh := NewFile(filesystemEntity.Id, n.storage)
 
-	node.SetAttr(&out.Attr)
+	node.SetEntryOut(out)
 
 	return ch, fh, 0, 0
 }
@@ -88,7 +81,18 @@ func (n *Node) Create(ctx context.Context, name string, _ uint32, _ uint32, out 
 var _ = (fs.NodeMkdirer)((*Node)(nil))
 
 func (n *Node) Mkdir(ctx context.Context, name string, mode uint32, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
-	return nil, syscall.ENOSYS
+	directoryEntity, err := n.storage.SaveDirectory(n.Id, name)
+	if err != nil {
+		slog.Info("failed to save directory", "error", err)
+		return nil, syscall.EAGAIN
+	}
+
+	node := n.RootData.newNode(directoryEntity)
+	ch := n.NewInode(ctx, node, defaultAttr)
+
+	node.SetAttr(&out.Attr)
+
+	return ch, 0
 }
 
 var _ = (fs.NodeOpener)((*Node)(nil))
@@ -161,6 +165,8 @@ func (n *Node) Getattr(ctx context.Context, f fs.FileHandle, out *fuse.AttrOut) 
 var _ = (fs.NodeSetattrer)((*Node)(nil))
 
 func (n *Node) Setattr(ctx context.Context, f fs.FileHandle, in *fuse.SetAttrIn, out *fuse.AttrOut) syscall.Errno {
+	n.SetAttr(&out.Attr)
+
 	return 0
 }
 

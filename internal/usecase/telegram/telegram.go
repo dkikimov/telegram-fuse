@@ -18,6 +18,31 @@ type Bot struct {
 	db  repository.Repository
 }
 
+func (b *Bot) SaveDirectory(parentId int, name string) (entity.FilesystemEntity, error) {
+	msg := tgbotapi.NewMessage(config.TelegramCfg.ChatId, name)
+	message, err := b.api.Send(msg)
+	if err != nil {
+		return entity.FilesystemEntity{}, fmt.Errorf("couldn't send message: %w", err)
+	}
+
+	e := entity.NewDirectory(
+		0,
+		parentId,
+		name,
+		message.MessageID,
+		message.Time(),
+		message.Time(),
+	)
+
+	entityId, err := b.db.SaveEntity(e)
+	if err != nil {
+		return entity.FilesystemEntity{}, fmt.Errorf("couldn't save entity: %w", err)
+	}
+
+	e.Id = entityId
+	return e, err
+}
+
 func (b *Bot) UpdateEntity(filesystemEntity entity.FilesystemEntity) error {
 	return b.db.UpdateEntity(filesystemEntity)
 }
