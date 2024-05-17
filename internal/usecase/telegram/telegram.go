@@ -18,6 +18,10 @@ type Bot struct {
 	db  repository.Repository
 }
 
+func (b *Bot) UpdateEntity(filesystemEntity entity.FilesystemEntity) error {
+	return b.db.UpdateEntity(filesystemEntity)
+}
+
 func (b *Bot) UpdateFile(id int, data []byte) (entity.FilesystemEntity, error) {
 	e, err := b.db.GetEntity(id)
 	if err != nil {
