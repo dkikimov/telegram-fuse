@@ -213,15 +213,35 @@ func (n *Node) Write(ctx context.Context, f fs.FileHandle, data []byte, off int6
 		return 0, syscall.EINVAL
 	}
 
-	newEntity, written, e := file.Write(ctx, data, off)
+	written, e := file.Write(ctx, data, off)
 	if e != 0 {
 		return 0, fs.ToErrno(e)
 	}
 
-	n.FromEntity(*newEntity)
 	slog.Info("wrote to file", "id", n.Id, "size", n.Size, "messageId", n.MessageID)
 
 	return written, 0
+}
+
+var _ = (fs.NodeFlusher)((*Node)(nil))
+
+func (n *Node) Flush(ctx context.Context, f fs.FileHandle) syscall.Errno {
+	file, ok := f.(*File)
+	if !ok {
+		return syscall.EINVAL
+	}
+
+	newEntity, e := file.Flush(ctx)
+	if e != 0 {
+		slog.Error("failed to flush file", "error", e)
+		return fs.ToErrno(e)
+	}
+
+	n.FromEntity(*newEntity)
+
+	slog.Info("flushed file", "id", n.Id, "size", n.Size, "messageId", n.MessageID)
+
+	return 0
 }
 
 var _ = (fs.NodeStatfser)((*Node)(nil))
