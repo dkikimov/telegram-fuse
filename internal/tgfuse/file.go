@@ -43,6 +43,7 @@ func (f *File) Flush(ctx context.Context) (*entity.FilesystemEntity, syscall.Err
 
 	newEntity, err := f.storage.UpdateFile(f.id, f.buffer)
 	if err != nil {
+		slog.Info("couldn't update file", "error", err, "id", f.id)
 		return nil, syscall.EIO
 	}
 
