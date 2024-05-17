@@ -174,6 +174,21 @@ func (n *Node) Unlink(ctx context.Context, name string) syscall.Errno {
 	return 0
 }
 
+var _ = (fs.NodeRmdirer)((*Node)(nil))
+
+func (n *Node) Rmdir(ctx context.Context, name string) syscall.Errno {
+	nodeToDelete := n.GetChild(name).Operations().(*Node)
+
+	err := n.storage.DeleteEntity(nodeToDelete.Id)
+	if err != nil {
+		slog.Info("failed to delete entity", "error", err)
+		return syscall.EAGAIN
+	}
+
+	slog.Info("deleted entity", "name", name)
+	return 0
+}
+
 var _ = (fs.NodeGetattrer)((*Node)(nil))
 
 func (n *Node) Getattr(ctx context.Context, f fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
