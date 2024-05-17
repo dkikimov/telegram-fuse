@@ -7,6 +7,7 @@ type Storage interface {
 	SaveDirectory(parentId int, name string) (entity.FilesystemEntity, error)
 	UpdateFile(id int, data []byte) (entity.FilesystemEntity, error)
 	UpdateEntity(filesystemEntity entity.FilesystemEntity) (*entity.FilesystemEntity, error)
+	DeleteEntity(id int) error
 	ReadFile(id int) ([]byte, error)
 	GetDirectoryChildren(id int) ([]entity.FilesystemEntity, error)
 	GetEntityById(id int) (entity.FilesystemEntity, error)

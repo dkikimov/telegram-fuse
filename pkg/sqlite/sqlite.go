@@ -12,6 +12,20 @@ type Database struct {
 	*sql.DB
 }
 
+func (d *Database) DeleteEntity(id int) error {
+	stmt, err := d.DB.Prepare("DELETE FROM file_entities WHERE id = ?")
+	if err != nil {
+		return fmt.Errorf("couldn't prepare delete filesystemEntity statement: %w", err)
+	}
+
+	_, err = stmt.Exec(id)
+	if err != nil {
+		return fmt.Errorf("couldn't execute delete filesystemEntity statement: %w", err)
+	}
+
+	return nil
+}
+
 func (d *Database) UpdateEntity(filesystemEntity entity.FilesystemEntity) error {
 	stmt, err := d.DB.Prepare("UPDATE file_entities SET parent_id = ?, name = ?, file_size = ?, message_id = ?, file_id = ?, updated_at = ? WHERE id = ?")
 	if err != nil {

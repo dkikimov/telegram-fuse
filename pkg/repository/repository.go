@@ -10,4 +10,5 @@ type Repository interface {
 	RemoveEntity(filesystemEntity entity.FilesystemEntity) error
 	GetEntity(id int) (entity.FilesystemEntity, error)
 	UpdateEntity(filesystemEntity entity.FilesystemEntity) error
+	DeleteEntity(id int) error
 }

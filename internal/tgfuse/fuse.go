@@ -159,10 +159,19 @@ func (n *Node) Rename(ctx context.Context, name string, newParent fs.InodeEmbedd
 	return 0
 }
 
-var _ = (fs.NodeRmdirer)((*Node)(nil))
+var _ = (fs.NodeUnlinker)((*Node)(nil))
 
-func (n *Node) Rmdir(ctx context.Context, name string) syscall.Errno {
-	return syscall.ENOSYS
+func (n *Node) Unlink(ctx context.Context, name string) syscall.Errno {
+	nodeToDelete := n.GetChild(name).Operations().(*Node)
+
+	err := n.storage.DeleteEntity(nodeToDelete.Id)
+	if err != nil {
+		slog.Info("failed to delete entity", "error", err)
+		return syscall.EAGAIN
+	}
+
+	slog.Info("deleted entity", "name", name)
+	return 0
 }
 
 var _ = (fs.NodeGetattrer)((*Node)(nil))
