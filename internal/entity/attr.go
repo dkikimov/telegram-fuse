@@ -6,7 +6,7 @@ import (
 	"github.com/hanwen/go-fuse/v2/fuse"
 )
 
-func (f FilesystemEntity) SetAttr(attr *fuse.Attr) bool {
+func (f *FilesystemEntity) SetAttr(attr *fuse.Attr) {
 	if f.IsDirectory() {
 		attr.Mode = fuse.S_IFDIR | 0777
 	} else {
@@ -18,14 +18,10 @@ func (f FilesystemEntity) SetAttr(attr *fuse.Attr) bool {
 	attr.Atime = uint64(f.CreatedAt.Unix())
 	attr.Mtime = uint64(f.UpdatedAt.Unix())
 	attr.Ctime = uint64(f.UpdatedAt.Unix())
-
-	return true
 }
 
-func (f FilesystemEntity) FromAttr(attr *fuse.SetAttrIn) bool {
+func (f *FilesystemEntity) FromAttr(attr *fuse.SetAttrIn) {
 	f.Size = int(attr.Size)
 	f.CreatedAt = time.Unix(int64(attr.Atime), int64(attr.Atimensec))
 	f.UpdatedAt = time.Unix(int64(attr.Mtime), int64(attr.Mtimensec))
-
-	return true
 }

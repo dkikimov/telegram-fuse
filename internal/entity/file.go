@@ -30,7 +30,7 @@ type FilesystemEntity struct {
 	UpdatedAt time.Time
 }
 
-func (f FilesystemEntity) IsDirectory() bool {
+func (f *FilesystemEntity) IsDirectory() bool {
 	if len(f.FileID) == 0 {
 		return true
 	}

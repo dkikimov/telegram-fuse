@@ -22,16 +22,11 @@ var _ = (fs.FileHandle)((*File)(nil))
 var _ = (fs.FileReleaser)((*File)(nil))
 var _ = (fs.FileReader)((*File)(nil))
 var _ = (fs.FileFlusher)((*File)(nil))
-var _ = (fs.FileSetattrer)((*File)(nil))
 var _ = (fs.FileAllocater)((*File)(nil))
 var _ = (fs.FileWriter)((*File)(nil))
 var _ = (fs.FileFsyncer)((*File)(nil))
 
 func (f *File) Allocate(ctx context.Context, off uint64, size uint64, mode uint32) syscall.Errno {
-	return 0
-}
-
-func (f *File) Setattr(ctx context.Context, in *fuse.SetAttrIn, out *fuse.AttrOut) syscall.Errno {
 	return 0
 }
 

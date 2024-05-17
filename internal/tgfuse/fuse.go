@@ -69,7 +69,7 @@ func (n *Node) OnAdd(ctx context.Context) {
 var _ = (fs.NodeCreater)((*Node)(nil))
 
 func (n *Node) Create(ctx context.Context, name string, _ uint32, _ uint32, out *fuse.EntryOut) (*fs.Inode, fs.FileHandle, uint32, syscall.Errno) {
-	filesystemEntity, err := n.storage.SaveFile(n.Id, name, []byte("empty"))
+	filesystemEntity, err := n.storage.SaveFile(n.Id, name, []byte(" "))
 	if err != nil {
 		return nil, nil, 0, syscall.EAGAIN
 	}
@@ -136,7 +136,8 @@ func (n *Node) Getattr(ctx context.Context, f fs.FileHandle, out *fuse.AttrOut) 
 var _ = (fs.NodeSetattrer)((*Node)(nil))
 
 func (n *Node) Setattr(ctx context.Context, f fs.FileHandle, in *fuse.SetAttrIn, out *fuse.AttrOut) syscall.Errno {
-	n.FromAttr(in)
+	n.FilesystemEntity.FromAttr(in)
+	n.FilesystemEntity.SetAttr(&out.Attr)
 
 	return 0
 }

@@ -81,7 +81,7 @@ func (b *Bot) SaveFile(parentId int, name string, data []byte) (entity.Filesyste
 	e := entity.FilesystemEntity{
 		ParentId:  parentId,
 		Name:      name,
-		Size:      message.Document.FileSize,
+		Size:      0,
 		MessageID: message.MessageID,
 		FileID:    message.Document.FileID,
 	}
