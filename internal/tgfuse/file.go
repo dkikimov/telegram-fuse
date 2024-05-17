@@ -9,6 +9,7 @@ import (
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
 
+	"telegram-fuse/internal/entity"
 	"telegram-fuse/internal/usecase"
 )
 
@@ -58,7 +59,7 @@ func (f *File) Read(ctx context.Context, buf []byte, off int64) (res fuse.ReadRe
 	return res, syscall.F_OK
 }
 
-func (f *File) Write(ctx context.Context, data []byte, off int64) (total int, written uint32, errno syscall.Errno) {
+func (f *File) Write(ctx context.Context, data []byte, off int64) (fsEntity *entity.FilesystemEntity, written uint32, errno syscall.Errno) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -66,18 +67,18 @@ func (f *File) Write(ctx context.Context, data []byte, off int64) (total int, wr
 
 	content, err := f.storage.ReadFile(f.id)
 	if err != nil {
-		return 0, 0, syscall.EIO
+		return nil, 0, syscall.EIO
 	}
 
 	content = content[:off]
 	content = append(content, data...)
 
-	_, err = f.storage.UpdateFile(f.id, content)
+	newEntity, err := f.storage.UpdateFile(f.id, content)
 	if err != nil {
-		return 0, 0, syscall.EIO
+		return nil, 0, syscall.EIO
 	}
 
-	return len(content), uint32(len(data)), 0
+	return &newEntity, uint32(len(data)), 0
 }
 
 func NewFile(id int, storage usecase.Storage) *File {

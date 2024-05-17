@@ -47,7 +47,8 @@ func (b *Bot) SaveDirectory(parentId int, name string) (entity.FilesystemEntity,
 	return e, err
 }
 
-func (b *Bot) UpdateEntity(filesystemEntity entity.FilesystemEntity) error {
+func (b *Bot) UpdateEntity(filesystemEntity entity.FilesystemEntity) (*entity.FilesystemEntity, error) {
+	// If the entity is a directory, update the message text
 	if filesystemEntity.IsDirectory() {
 		msg := tgbotapi.NewEditMessageText(
 			config.TelegramCfg.ChatId,
@@ -56,14 +57,16 @@ func (b *Bot) UpdateEntity(filesystemEntity entity.FilesystemEntity) error {
 		)
 		_, err := b.api.Send(msg)
 		if err != nil {
-			return fmt.Errorf("couldn't send message: %w", err)
+			return nil, fmt.Errorf("couldn't send message: %w", err)
 		}
-		return b.db.UpdateEntity(filesystemEntity)
+
+		return &filesystemEntity, nil
 	}
 
+	// If the entity is a file, create a new message with the file content and delete the old one
 	content, err := b.ReadFile(filesystemEntity.Id)
 	if err != nil {
-		return fmt.Errorf("couldn't read file: %w", err)
+		return nil, fmt.Errorf("couldn't read file: %w", err)
 	}
 
 	file := tgbotapi.FileBytes{
@@ -76,7 +79,13 @@ func (b *Bot) UpdateEntity(filesystemEntity entity.FilesystemEntity) error {
 
 	message, err := b.api.Send(doc)
 	if err != nil {
-		return fmt.Errorf("couldn't send message: %w", err)
+		return nil, fmt.Errorf("couldn't send message: %w", err)
+	}
+
+	deleteOldMessageConfig := tgbotapi.NewDeleteMessage(config.TelegramCfg.ChatId, filesystemEntity.MessageID)
+	_, err = b.api.Request(deleteOldMessageConfig)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't delete old message: %w", err)
 	}
 
 	filesystemEntity.Size = message.Document.FileSize
@@ -84,7 +93,7 @@ func (b *Bot) UpdateEntity(filesystemEntity entity.FilesystemEntity) error {
 	filesystemEntity.FileID = message.Document.FileID
 	filesystemEntity.UpdatedAt = message.Time()
 
-	return b.db.UpdateEntity(filesystemEntity)
+	return &filesystemEntity, nil
 }
 
 func (b *Bot) UpdateFile(id int, data []byte) (entity.FilesystemEntity, error) {

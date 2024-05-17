@@ -30,14 +30,24 @@ func (n *Node) Access(ctx context.Context, mask uint32) syscall.Errno {
 var _ = (fs.NodeLookuper)((*Node)(nil))
 
 func (n *Node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+	// Check if looking for itself
+	if n.IsDirectory() == false {
+		if n.Name == name {
+			n.SetEntryOut(out)
+			return n.EmbeddedInode(), 0
+		} else {
+			return nil, syscall.ENOENT
+		}
+	}
+
 	// Check if the file exists in the directory
-	fileId, err := n.storage.GetDirectoryChildren(n.Id)
+	filesystemEntities, err := n.storage.GetDirectoryChildren(n.Id)
 	if err != nil {
 		slog.Info("failed to get directory children", "error", err)
 		return nil, syscall.EAGAIN
 	}
 
-	for _, file := range fileId {
+	for _, file := range filesystemEntities {
 		if file.Name == name {
 			node := n.RootData.newNode(file)
 			ch := n.NewInode(ctx, node, node.GetStableAttr())
@@ -71,6 +81,7 @@ func (n *Node) Create(ctx context.Context, name string, _ uint32, _ uint32, out 
 
 	node.SetEntryOut(out)
 
+	slog.Info("created file", "name", name, "id", filesystemEntity.Id, "messageId", filesystemEntity.MessageID)
 	return ch, fh, 0, 0
 }
 
@@ -136,11 +147,15 @@ func (n *Node) Rename(ctx context.Context, name string, newParent fs.InodeEmbedd
 	nodeToRename.Name = newName
 	nodeToRename.ParentId = parentNode.Id
 
-	if err := n.storage.UpdateEntity(nodeToRename.FilesystemEntity); err != nil {
+	newEntity, err := n.storage.UpdateEntity(nodeToRename.FilesystemEntity)
+	if err != nil {
 		slog.Info("failed to update entity", "error", err)
 		return syscall.EAGAIN
 	}
 
+	nodeToRename.FromEntity(*newEntity)
+
+	slog.Info("renamed entity", "oldName", name, "newName", newName)
 	return 0
 }
 
@@ -174,12 +189,13 @@ func (n *Node) Write(ctx context.Context, f fs.FileHandle, data []byte, off int6
 		return 0, syscall.EINVAL
 	}
 
-	total, written, e := file.Write(ctx, data, off)
+	newEntity, written, e := file.Write(ctx, data, off)
 	if e != 0 {
 		return 0, fs.ToErrno(e)
 	}
 
-	n.Size = total
+	n.FromEntity(*newEntity)
+	slog.Info("wrote to file", "id", n.Id, "size", n.Size, "messageId", n.MessageID)
 
 	return written, 0
 }
