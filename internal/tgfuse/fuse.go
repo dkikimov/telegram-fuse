@@ -8,14 +8,14 @@ import (
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
 
+	"telegram-fuse/internal/entity"
 	"telegram-fuse/internal/usecase"
 )
 
 type Node struct {
 	fs.Inode
-	Id       int
+	entity.FilesystemEntity
 	RootData *Root
-	Name     string
 	storage  usecase.Storage
 }
 
@@ -24,7 +24,6 @@ var defaultAttr = fs.StableAttr{
 }
 
 var _ = (fs.InodeEmbedder)((*Node)(nil))
-
 var _ = (fs.NodeAccesser)((*Node)(nil))
 
 func (n *Node) Access(ctx context.Context, mask uint32) syscall.Errno {
@@ -68,7 +67,6 @@ func (n *Node) OnAdd(ctx context.Context) {
 }
 
 var _ = (fs.NodeCreater)((*Node)(nil))
-var _ = fs.NodeCreater(&Node{})
 
 func (n *Node) Create(ctx context.Context, name string, _ uint32, _ uint32, out *fuse.EntryOut) (*fs.Inode, fs.FileHandle, uint32, syscall.Errno) {
 	filesystemEntity, err := n.storage.SaveFile(n.Id, name, []byte("empty"))
@@ -80,6 +78,8 @@ func (n *Node) Create(ctx context.Context, name string, _ uint32, _ uint32, out 
 	ch := n.NewInode(ctx, node, defaultAttr)
 
 	fh := NewFile(filesystemEntity.Id, n.storage)
+
+	node.SetAttr(&out.Attr)
 
 	return ch, fh, 0, 0
 }
@@ -125,40 +125,10 @@ func (n *Node) Rmdir(ctx context.Context, name string) syscall.Errno {
 	return syscall.ENOSYS
 }
 
-// var _ = (fs.NodeWriter)((*Node)(nil))
-//
-// func (n *Node) Write(ctx context.Context, f fs.FileHandle, data []byte, off int64) (written uint32, errno syscall.Errno) {
-// 	fsEntity, err := n.storage.GetEntityById(n.Id)
-// 	if err != nil {
-// 		slog.Info("failed to get entity by id", "error", err)
-// 		return 0, syscall.EAGAIN
-// 	}
-//
-// 	n.storage.ReadFile(fsEntity.Id)
-//
-// 	return 0, syscall.ENOSYS
-// }
-
 var _ = (fs.NodeGetattrer)((*Node)(nil))
 
 func (n *Node) Getattr(ctx context.Context, f fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
-	filesystemEntity, err := n.storage.GetEntityById(n.Id)
-	if err != nil {
-		slog.Info("failed to get entity by id", "error", err)
-		return syscall.EAGAIN
-	}
-
-	filesystemEntity.SetAttr(&out.Attr)
-
-	return 0
-}
-
-var _ = (fs.NodeStatfser)((*Node)(nil))
-
-func (n *Node) Statfs(ctx context.Context, out *fuse.StatfsOut) syscall.Errno {
-	out.Blocks = 1
-	out.Bfree = 1
-	out.Bavail = 1
+	n.SetAttr(&out.Attr)
 
 	return 0
 }
@@ -166,13 +136,7 @@ func (n *Node) Statfs(ctx context.Context, out *fuse.StatfsOut) syscall.Errno {
 var _ = (fs.NodeSetattrer)((*Node)(nil))
 
 func (n *Node) Setattr(ctx context.Context, f fs.FileHandle, in *fuse.SetAttrIn, out *fuse.AttrOut) syscall.Errno {
-	out.Mode = in.Mode
-	out.Size = in.Size
-	return 0
-}
+	n.FromAttr(in)
 
-var _ = (fs.NodeFsyncer)((*Node)(nil))
-
-func (n *Node) Fsync(ctx context.Context, f fs.FileHandle, flags uint32) syscall.Errno {
 	return 0
 }

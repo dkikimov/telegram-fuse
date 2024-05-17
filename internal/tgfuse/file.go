@@ -18,6 +18,15 @@ type File struct {
 	storage usecase.Storage
 }
 
+var _ = (fs.FileHandle)((*File)(nil))
+var _ = (fs.FileReleaser)((*File)(nil))
+var _ = (fs.FileReader)((*File)(nil))
+var _ = (fs.FileFlusher)((*File)(nil))
+var _ = (fs.FileSetattrer)((*File)(nil))
+var _ = (fs.FileAllocater)((*File)(nil))
+var _ = (fs.FileWriter)((*File)(nil))
+var _ = (fs.FileFsyncer)((*File)(nil))
+
 func (f *File) Allocate(ctx context.Context, off uint64, size uint64, mode uint32) syscall.Errno {
 	return 0
 }
@@ -34,17 +43,9 @@ func (f *File) Flush(ctx context.Context) syscall.Errno {
 	return 0
 }
 
-func NewFile(id int, storage usecase.Storage) *File {
-	return &File{id: id, storage: storage}
+func (f *File) Fsync(ctx context.Context, flags uint32) syscall.Errno {
+	return 0
 }
-
-var _ = (fs.FileHandle)((*File)(nil))
-var _ = (fs.FileReleaser)((*File)(nil))
-var _ = (fs.FileReader)((*File)(nil))
-var _ = (fs.FileFlusher)((*File)(nil))
-var _ = (fs.FileSetattrer)((*File)(nil))
-var _ = (fs.FileAllocater)((*File)(nil))
-var _ = (fs.FileWriter)((*File)(nil))
 
 func (f *File) Read(ctx context.Context, buf []byte, off int64) (res fuse.ReadResult, errno syscall.Errno) {
 	f.mu.Lock()
@@ -82,4 +83,8 @@ func (f *File) Write(ctx context.Context, data []byte, off int64) (written uint3
 	}
 
 	return uint32(len(data)), 0
+}
+
+func NewFile(id int, storage usecase.Storage) *File {
+	return &File{id: id, storage: storage}
 }
