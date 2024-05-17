@@ -3,6 +3,7 @@ package tgfuse
 import (
 	"context"
 	"log/slog"
+	"math"
 	"syscall"
 
 	"github.com/hanwen/go-fuse/v2/fs"
@@ -136,8 +137,41 @@ func (n *Node) Getattr(ctx context.Context, f fs.FileHandle, out *fuse.AttrOut) 
 var _ = (fs.NodeSetattrer)((*Node)(nil))
 
 func (n *Node) Setattr(ctx context.Context, f fs.FileHandle, in *fuse.SetAttrIn, out *fuse.AttrOut) syscall.Errno {
-	n.FilesystemEntity.FromAttr(in)
-	n.FilesystemEntity.SetAttr(&out.Attr)
+	return 0
+}
+
+var _ = (fs.NodeWriter)((*Node)(nil))
+
+func (n *Node) Write(ctx context.Context, f fs.FileHandle, data []byte, off int64) (written uint32, errno syscall.Errno) {
+	file, ok := f.(*File)
+	if !ok {
+		return 0, syscall.EINVAL
+	}
+
+	total, written, e := file.Write(ctx, data, off)
+	if e != 0 {
+		return 0, fs.ToErrno(e)
+	}
+
+	n.Size = total
+
+	return written, 0
+}
+
+var _ = (fs.NodeStatfser)((*Node)(nil))
+
+var basicStatfs = syscall.Statfs_t{
+	Bsize:  4096,
+	Iosize: math.MaxInt32,
+	Blocks: math.MaxUint64,
+	Bfree:  math.MaxUint64,
+	Bavail: math.MaxUint64,
+	Files:  math.MaxUint64,
+	Ffree:  math.MaxUint64,
+}
+
+func (n *Node) Statfs(ctx context.Context, out *fuse.StatfsOut) syscall.Errno {
+	out.FromStatfsT(&basicStatfs)
 
 	return 0
 }
