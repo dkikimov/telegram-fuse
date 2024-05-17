@@ -13,12 +13,11 @@ type Root struct {
 	storage usecase.Storage
 }
 
-func (r *Root) newNode(filesystemEntity entity.FilesystemEntity) fs.InodeEmbedder {
+func (r *Root) newNode(filesystemEntity entity.FilesystemEntity) *Node {
 	return &Node{
-		RootData: r,
-		storage:  r.storage,
-		Id:       filesystemEntity.Id,
-		Name:     filesystemEntity.Name,
+		RootData:         r,
+		storage:          r.storage,
+		FilesystemEntity: filesystemEntity,
 	}
 }
 

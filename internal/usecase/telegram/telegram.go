@@ -41,6 +41,7 @@ func (b *Bot) UpdateFile(id int, data []byte) (entity.FilesystemEntity, error) {
 	e.Size = message.Document.FileSize
 	e.MessageID = message.MessageID
 	e.FileID = message.Document.FileID
+	e.UpdatedAt = message.Time()
 
 	err = b.db.UpdateEntity(e)
 	if err != nil {
@@ -78,13 +79,16 @@ func (b *Bot) SaveFile(parentId int, name string, data []byte) (entity.Filesyste
 		return entity.FilesystemEntity{}, fmt.Errorf("couldn't send message: %w", err)
 	}
 
-	e := entity.FilesystemEntity{
-		ParentId:  parentId,
-		Name:      name,
-		Size:      message.Document.FileSize,
-		MessageID: message.MessageID,
-		FileID:    message.Document.FileID,
-	}
+	e := entity.NewFile(
+		0,
+		parentId,
+		name,
+		0,
+		message.MessageID,
+		message.Document.FileID,
+		message.Time(),
+		message.Time(),
+	)
 
 	entityId, err := b.db.SaveEntity(e)
 	if err != nil {

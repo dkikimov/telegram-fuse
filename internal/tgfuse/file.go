@@ -18,11 +18,15 @@ type File struct {
 	storage usecase.Storage
 }
 
-func (f *File) Allocate(ctx context.Context, off uint64, size uint64, mode uint32) syscall.Errno {
-	return 0
-}
+var _ = (fs.FileHandle)((*File)(nil))
+var _ = (fs.FileReleaser)((*File)(nil))
+var _ = (fs.FileReader)((*File)(nil))
+var _ = (fs.FileFlusher)((*File)(nil))
+var _ = (fs.FileAllocater)((*File)(nil))
 
-func (f *File) Setattr(ctx context.Context, in *fuse.SetAttrIn, out *fuse.AttrOut) syscall.Errno {
+var _ = (fs.FileFsyncer)((*File)(nil))
+
+func (f *File) Allocate(ctx context.Context, off uint64, size uint64, mode uint32) syscall.Errno {
 	return 0
 }
 
@@ -34,17 +38,9 @@ func (f *File) Flush(ctx context.Context) syscall.Errno {
 	return 0
 }
 
-func NewFile(id int, storage usecase.Storage) *File {
-	return &File{id: id, storage: storage}
+func (f *File) Fsync(ctx context.Context, flags uint32) syscall.Errno {
+	return 0
 }
-
-var _ = (fs.FileHandle)((*File)(nil))
-var _ = (fs.FileReleaser)((*File)(nil))
-var _ = (fs.FileReader)((*File)(nil))
-var _ = (fs.FileFlusher)((*File)(nil))
-var _ = (fs.FileSetattrer)((*File)(nil))
-var _ = (fs.FileAllocater)((*File)(nil))
-var _ = (fs.FileWriter)((*File)(nil))
 
 func (f *File) Read(ctx context.Context, buf []byte, off int64) (res fuse.ReadResult, errno syscall.Errno) {
 	f.mu.Lock()
@@ -62,7 +58,7 @@ func (f *File) Read(ctx context.Context, buf []byte, off int64) (res fuse.ReadRe
 	return res, syscall.F_OK
 }
 
-func (f *File) Write(ctx context.Context, data []byte, off int64) (written uint32, errno syscall.Errno) {
+func (f *File) Write(ctx context.Context, data []byte, off int64) (total int, written uint32, errno syscall.Errno) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -70,7 +66,7 @@ func (f *File) Write(ctx context.Context, data []byte, off int64) (written uint3
 
 	content, err := f.storage.ReadFile(f.id)
 	if err != nil {
-		return 0, syscall.EIO
+		return 0, 0, syscall.EIO
 	}
 
 	content = content[:off]
@@ -78,8 +74,12 @@ func (f *File) Write(ctx context.Context, data []byte, off int64) (written uint3
 
 	_, err = f.storage.UpdateFile(f.id, content)
 	if err != nil {
-		return 0, syscall.EIO
+		return 0, 0, syscall.EIO
 	}
 
-	return uint32(len(data)), 0
+	return len(content), uint32(len(data)), 0
+}
+
+func NewFile(id int, storage usecase.Storage) *File {
+	return &File{id: id, storage: storage}
 }
