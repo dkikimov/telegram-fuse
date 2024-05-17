@@ -20,10 +20,6 @@ type Node struct {
 	storage  usecase.Storage
 }
 
-var defaultAttr = fs.StableAttr{
-	Mode: 0777,
-}
-
 var _ = (fs.InodeEmbedder)((*Node)(nil))
 var _ = (fs.NodeAccesser)((*Node)(nil))
 
@@ -44,7 +40,7 @@ func (n *Node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs
 	for _, file := range fileId {
 		if file.Name == name {
 			node := n.RootData.newNode(file)
-			ch := n.NewInode(ctx, node, defaultAttr)
+			ch := n.NewInode(ctx, node, node.GetStableAttr())
 
 			node.SetEntryOut(out)
 			return ch, 0
@@ -69,7 +65,7 @@ func (n *Node) Create(ctx context.Context, name string, _ uint32, _ uint32, out 
 	}
 
 	node := n.RootData.newNode(filesystemEntity)
-	ch := n.NewInode(ctx, node, defaultAttr)
+	ch := n.NewInode(ctx, node, node.GetStableAttr())
 
 	fh := NewFile(filesystemEntity.Id, n.storage)
 
@@ -88,7 +84,7 @@ func (n *Node) Mkdir(ctx context.Context, name string, mode uint32, out *fuse.En
 	}
 
 	node := n.RootData.newNode(directoryEntity)
-	ch := n.NewInode(ctx, node, defaultAttr)
+	ch := n.NewInode(ctx, node, node.GetStableAttr())
 
 	node.SetAttr(&out.Attr)
 

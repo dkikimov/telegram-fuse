@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
 )
 
@@ -16,10 +17,8 @@ func (f *FilesystemEntity) SetEntryOut(entry *fuse.EntryOut) {
 func (f *FilesystemEntity) SetAttr(attr *fuse.Attr) {
 	if f.IsDirectory() {
 		attr.Mode = fuse.S_IFDIR | 0755
-		attr.Nlink = 2
 	} else {
 		attr.Mode = fuse.S_IFREG | 0777
-		attr.Nlink = 1
 	}
 
 	slog.Info("SetAttr", "size", f.Size, "id", f.Id, "created_at", f.CreatedAt, "updated_at", f.UpdatedAt)
@@ -44,4 +43,18 @@ func (f *FilesystemEntity) FromAttr(attr *fuse.SetAttrIn) {
 	f.Size = int(attr.Size)
 
 	f.UpdatedAt = time.Unix(int64(attr.Mtime), int64(attr.Mtimensec))
+}
+
+func (f *FilesystemEntity) GetStableAttr() fs.StableAttr {
+	if f.IsDirectory() {
+		return fs.StableAttr{
+			Mode: fuse.S_IFDIR | 0755,
+			Ino:  uint64(f.Id),
+		}
+	}
+
+	return fs.StableAttr{
+		Mode: fuse.S_IFREG | 0777,
+		Ino:  uint64(f.Id),
+	}
 }
