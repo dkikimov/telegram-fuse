@@ -117,7 +117,31 @@ func (n *Node) Readdir(ctx context.Context) (fs.DirStream, syscall.Errno) {
 var _ = (fs.NodeRenamer)((*Node)(nil))
 
 func (n *Node) Rename(ctx context.Context, name string, newParent fs.InodeEmbedder, newName string, flags uint32) syscall.Errno {
-	return syscall.ENOSYS
+	parentNode := newParent.(*Node)
+
+	children, err := n.storage.GetDirectoryChildren(parentNode.Id)
+	if err != nil {
+		slog.Info("failed to get directory children", "error", err)
+		return syscall.EAGAIN
+	}
+
+	for _, child := range children {
+		if child.Name == newName {
+			return syscall.EEXIST
+		}
+	}
+
+	nodeToRename := n.GetChild(name).Operations().(*Node)
+
+	nodeToRename.Name = newName
+	nodeToRename.ParentId = parentNode.Id
+
+	if err := n.storage.UpdateEntity(nodeToRename.FilesystemEntity); err != nil {
+		slog.Info("failed to update entity", "error", err)
+		return syscall.EAGAIN
+	}
+
+	return 0
 }
 
 var _ = (fs.NodeRmdirer)((*Node)(nil))
