@@ -18,6 +18,44 @@ type Bot struct {
 	db  repository.Repository
 }
 
+func (b *Bot) UpdateFile(id int, data []byte) (entity.FilesystemEntity, error) {
+	e, err := b.db.GetEntity(id)
+	if err != nil {
+		return entity.FilesystemEntity{}, fmt.Errorf("couldn't get entity: %w", err)
+	}
+
+	previousMessageID := e.MessageID
+	file := tgbotapi.FileBytes{
+		Name:  e.Name,
+		Bytes: data,
+	}
+
+	doc := tgbotapi.NewDocument(config.TelegramCfg.ChatId, file)
+	doc.Caption = strconv.FormatInt(int64(e.ParentId), 10)
+
+	message, err := b.api.Send(doc)
+	if err != nil {
+		return entity.FilesystemEntity{}, fmt.Errorf("couldn't send message: %w", err)
+	}
+
+	e.Size = message.Document.FileSize
+	e.MessageID = message.MessageID
+	e.FileID = message.Document.FileID
+
+	err = b.db.UpdateEntity(e)
+	if err != nil {
+		return entity.FilesystemEntity{}, fmt.Errorf("couldn't update entity: %w", err)
+	}
+
+	deleteMessageConfig := tgbotapi.NewDeleteMessage(config.TelegramCfg.ChatId, previousMessageID)
+	_, err = b.api.Request(deleteMessageConfig)
+	if err != nil {
+		return entity.FilesystemEntity{}, fmt.Errorf("couldn't delete message: %w", err)
+	}
+
+	return e, err
+}
+
 func (b *Bot) GetEntityById(id int) (entity.FilesystemEntity, error) {
 	return b.db.GetEntity(id)
 }
