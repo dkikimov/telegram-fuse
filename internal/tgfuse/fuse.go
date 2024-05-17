@@ -20,10 +20,6 @@ type Node struct {
 	storage  usecase.Storage
 }
 
-var defaultAttr = fs.StableAttr{
-	Mode: 0777,
-}
-
 var _ = (fs.InodeEmbedder)((*Node)(nil))
 var _ = (fs.NodeAccesser)((*Node)(nil))
 
@@ -34,26 +30,29 @@ func (n *Node) Access(ctx context.Context, mask uint32) syscall.Errno {
 var _ = (fs.NodeLookuper)((*Node)(nil))
 
 func (n *Node) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
-	if n.IsDir() == false {
-		if name == n.Name {
-			return n.NewInode(ctx, n.EmbeddedInode(), defaultAttr), 0
+	// Check if looking for itself
+	if n.IsDirectory() == false {
+		if n.Name == name {
+			n.SetEntryOut(out)
+			return n.EmbeddedInode(), 0
 		} else {
 			return nil, syscall.ENOENT
 		}
 	}
 
 	// Check if the file exists in the directory
-	fileId, err := n.storage.GetDirectoryChildren(n.Id)
+	filesystemEntities, err := n.storage.GetDirectoryChildren(n.Id)
 	if err != nil {
 		slog.Info("failed to get directory children", "error", err)
 		return nil, syscall.EAGAIN
 	}
 
-	for _, file := range fileId {
+	for _, file := range filesystemEntities {
 		if file.Name == name {
 			node := n.RootData.newNode(file)
-			ch := n.NewInode(ctx, node, defaultAttr)
+			ch := n.NewInode(ctx, node, node.GetStableAttr())
 
+			node.SetEntryOut(out)
 			return ch, 0
 		}
 	}
@@ -76,19 +75,31 @@ func (n *Node) Create(ctx context.Context, name string, _ uint32, _ uint32, out 
 	}
 
 	node := n.RootData.newNode(filesystemEntity)
-	ch := n.NewInode(ctx, node, defaultAttr)
+	ch := n.NewInode(ctx, node, node.GetStableAttr())
 
 	fh := NewFile(filesystemEntity.Id, n.storage)
 
-	node.SetAttr(&out.Attr)
+	node.SetEntryOut(out)
 
+	slog.Info("created file", "name", name, "id", filesystemEntity.Id, "messageId", filesystemEntity.MessageID)
 	return ch, fh, 0, 0
 }
 
 var _ = (fs.NodeMkdirer)((*Node)(nil))
 
 func (n *Node) Mkdir(ctx context.Context, name string, mode uint32, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
-	return nil, syscall.ENOSYS
+	directoryEntity, err := n.storage.SaveDirectory(n.Id, name)
+	if err != nil {
+		slog.Info("failed to save directory", "error", err)
+		return nil, syscall.EAGAIN
+	}
+
+	node := n.RootData.newNode(directoryEntity)
+	ch := n.NewInode(ctx, node, node.GetStableAttr())
+
+	node.SetAttr(&out.Attr)
+
+	return ch, 0
 }
 
 var _ = (fs.NodeOpener)((*Node)(nil))
@@ -136,11 +147,15 @@ func (n *Node) Rename(ctx context.Context, name string, newParent fs.InodeEmbedd
 	nodeToRename.Name = newName
 	nodeToRename.ParentId = parentNode.Id
 
-	if err := n.storage.UpdateEntity(nodeToRename.FilesystemEntity); err != nil {
+	newEntity, err := n.storage.UpdateEntity(nodeToRename.FilesystemEntity)
+	if err != nil {
 		slog.Info("failed to update entity", "error", err)
 		return syscall.EAGAIN
 	}
 
+	nodeToRename.FromEntity(*newEntity)
+
+	slog.Info("renamed entity", "oldName", name, "newName", newName)
 	return 0
 }
 
@@ -161,6 +176,8 @@ func (n *Node) Getattr(ctx context.Context, f fs.FileHandle, out *fuse.AttrOut) 
 var _ = (fs.NodeSetattrer)((*Node)(nil))
 
 func (n *Node) Setattr(ctx context.Context, f fs.FileHandle, in *fuse.SetAttrIn, out *fuse.AttrOut) syscall.Errno {
+	n.SetAttr(&out.Attr)
+
 	return 0
 }
 
@@ -172,12 +189,13 @@ func (n *Node) Write(ctx context.Context, f fs.FileHandle, data []byte, off int6
 		return 0, syscall.EINVAL
 	}
 
-	total, written, e := file.Write(ctx, data, off)
+	newEntity, written, e := file.Write(ctx, data, off)
 	if e != 0 {
 		return 0, fs.ToErrno(e)
 	}
 
-	n.Size = total
+	n.FromEntity(*newEntity)
+	slog.Info("wrote to file", "id", n.Id, "size", n.Size, "messageId", n.MessageID)
 
 	return written, 0
 }

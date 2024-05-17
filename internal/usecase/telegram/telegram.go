@@ -18,8 +18,82 @@ type Bot struct {
 	db  repository.Repository
 }
 
-func (b *Bot) UpdateEntity(filesystemEntity entity.FilesystemEntity) error {
-	return b.db.UpdateEntity(filesystemEntity)
+func (b *Bot) SaveDirectory(parentId int, name string) (entity.FilesystemEntity, error) {
+	msg := tgbotapi.NewMessage(config.TelegramCfg.ChatId, fmt.Sprintf(
+		"%s %s",
+		name,
+		strconv.FormatInt(int64(parentId), 10),
+	))
+	message, err := b.api.Send(msg)
+	if err != nil {
+		return entity.FilesystemEntity{}, fmt.Errorf("couldn't send message: %w", err)
+	}
+
+	e := entity.NewDirectory(
+		0,
+		parentId,
+		name,
+		message.MessageID,
+		message.Time(),
+		message.Time(),
+	)
+
+	entityId, err := b.db.SaveEntity(e)
+	if err != nil {
+		return entity.FilesystemEntity{}, fmt.Errorf("couldn't save entity: %w", err)
+	}
+
+	e.Id = entityId
+	return e, err
+}
+
+func (b *Bot) UpdateEntity(filesystemEntity entity.FilesystemEntity) (*entity.FilesystemEntity, error) {
+	// If the entity is a directory, update the message text
+	if filesystemEntity.IsDirectory() {
+		msg := tgbotapi.NewEditMessageText(
+			config.TelegramCfg.ChatId,
+			filesystemEntity.MessageID,
+			fmt.Sprintf("%s %s", filesystemEntity.Name, strconv.FormatInt(int64(filesystemEntity.ParentId), 10)),
+		)
+		_, err := b.api.Send(msg)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't send message: %w", err)
+		}
+
+		return &filesystemEntity, nil
+	}
+
+	// If the entity is a file, create a new message with the file content and delete the old one
+	content, err := b.ReadFile(filesystemEntity.Id)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't read file: %w", err)
+	}
+
+	file := tgbotapi.FileBytes{
+		Name:  filesystemEntity.Name,
+		Bytes: content,
+	}
+
+	doc := tgbotapi.NewDocument(config.TelegramCfg.ChatId, file)
+	doc.Caption = strconv.FormatInt(int64(filesystemEntity.ParentId), 10)
+
+	message, err := b.api.Send(doc)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't send message: %w", err)
+	}
+
+	deleteOldMessageConfig := tgbotapi.NewDeleteMessage(config.TelegramCfg.ChatId, filesystemEntity.MessageID)
+	_, err = b.api.Request(deleteOldMessageConfig)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't delete old message: %w", err)
+	}
+
+	filesystemEntity.Size = message.Document.FileSize
+	filesystemEntity.MessageID = message.MessageID
+	filesystemEntity.FileID = message.Document.FileID
+	filesystemEntity.UpdatedAt = message.Time()
+
+	return &filesystemEntity, nil
 }
 
 func (b *Bot) UpdateFile(id int, data []byte) (entity.FilesystemEntity, error) {

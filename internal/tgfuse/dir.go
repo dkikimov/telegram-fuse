@@ -11,7 +11,7 @@ func NewListDirStreamFromEntity(list []entity.FilesystemEntity) fs.DirStream {
 	fuseDir := make([]fuse.DirEntry, len(list))
 	for i, el := range list {
 		fuseDir[i] = fuse.DirEntry{
-			Mode: defaultAttr.Mode,
+			Mode: el.GetStableAttr().Mode,
 			Name: el.Name,
 		}
 	}

@@ -26,11 +26,5 @@ func NewRoot(storage usecase.Storage) fs.InodeEmbedder {
 		storage: storage,
 	}
 
-	return root.newNode(entity.NewDirectory(
-		0,
-		-1,
-		"root",
-		time.Now(),
-		time.Now(),
-	))
+	return root.newNode(entity.NewDirectory(0, -1, "root", 0, time.Now(), time.Now()))
 }

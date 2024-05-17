@@ -16,7 +16,7 @@ type FilesystemEntity struct {
 	// Size is the size of the entity in bytes. Only for file.
 	Size int
 
-	// MessageID is the unique identifier of the message in the chat. Only for file.
+	// MessageID is the unique identifier of the message in the chat.
 	MessageID int
 
 	// FileID is the unique identifier of the file in the telegram chat.
@@ -51,11 +51,12 @@ func NewFile(id, parentId int, name string, size int, messageID int, fileID stri
 	}
 }
 
-func NewDirectory(id, parentId int, name string, createdAt, updatedAt time.Time) FilesystemEntity {
+func NewDirectory(id, parentId int, name string, messageID int, createdAt, updatedAt time.Time) FilesystemEntity {
 	return FilesystemEntity{
 		Id:        id,
 		ParentId:  parentId,
 		Name:      name,
+		MessageID: messageID,
 		CreatedAt: createdAt,
 		UpdatedAt: updatedAt,
 	}
