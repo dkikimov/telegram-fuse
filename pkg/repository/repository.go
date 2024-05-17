@@ -9,4 +9,5 @@ type Repository interface {
 	RenameEntity(filesystemEntity entity.FilesystemEntity) error
 	RemoveEntity(filesystemEntity entity.FilesystemEntity) error
 	GetEntity(id int) (entity.FilesystemEntity, error)
+	UpdateEntity(filesystemEntity entity.FilesystemEntity) error
 }

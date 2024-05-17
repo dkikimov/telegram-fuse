@@ -93,7 +93,7 @@ func (n *Node) Mkdir(ctx context.Context, name string, mode uint32, out *fuse.En
 var _ = (fs.NodeOpener)((*Node)(nil))
 
 func (n *Node) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
-	fh = NewFile(2, n.storage)
+	fh = NewFile(n.Id, n.storage)
 	return fh, 0, 0
 }
 
@@ -125,11 +125,19 @@ func (n *Node) Rmdir(ctx context.Context, name string) syscall.Errno {
 	return syscall.ENOSYS
 }
 
-var _ = (fs.NodeWriter)((*Node)(nil))
-
-func (n *Node) Write(ctx context.Context, f fs.FileHandle, data []byte, off int64) (written uint32, errno syscall.Errno) {
-	return 0, syscall.ENOSYS
-}
+// var _ = (fs.NodeWriter)((*Node)(nil))
+//
+// func (n *Node) Write(ctx context.Context, f fs.FileHandle, data []byte, off int64) (written uint32, errno syscall.Errno) {
+// 	fsEntity, err := n.storage.GetEntityById(n.Id)
+// 	if err != nil {
+// 		slog.Info("failed to get entity by id", "error", err)
+// 		return 0, syscall.EAGAIN
+// 	}
+//
+// 	n.storage.ReadFile(fsEntity.Id)
+//
+// 	return 0, syscall.ENOSYS
+// }
 
 var _ = (fs.NodeGetattrer)((*Node)(nil))
 
@@ -160,5 +168,11 @@ var _ = (fs.NodeSetattrer)((*Node)(nil))
 func (n *Node) Setattr(ctx context.Context, f fs.FileHandle, in *fuse.SetAttrIn, out *fuse.AttrOut) syscall.Errno {
 	out.Mode = in.Mode
 	out.Size = in.Size
+	return 0
+}
+
+var _ = (fs.NodeFsyncer)((*Node)(nil))
+
+func (n *Node) Fsync(ctx context.Context, f fs.FileHandle, flags uint32) syscall.Errno {
 	return 0
 }

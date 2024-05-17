@@ -12,6 +12,28 @@ type Database struct {
 	*sql.DB
 }
 
+func (d *Database) UpdateEntity(filesystemEntity entity.FilesystemEntity) error {
+	stmt, err := d.DB.Prepare("UPDATE file_entities SET parent_id = ?, name = ?, file_size = ?, message_id = ?, file_id = ?, updated_at = ? WHERE id = ?")
+	if err != nil {
+		return fmt.Errorf("couldn't prepare update filesystemEntity statement: %w", err)
+	}
+
+	_, err = stmt.Exec(
+		filesystemEntity.ParentId,
+		filesystemEntity.Name,
+		filesystemEntity.Size,
+		filesystemEntity.MessageID,
+		filesystemEntity.FileID,
+		time.Now(),
+		filesystemEntity.Id,
+	)
+	if err != nil {
+		return fmt.Errorf("couldn't execute update filesystemEntity statement: %w", err)
+	}
+
+	return nil
+}
+
 func (d *Database) GetEntity(id int) (entity.FilesystemEntity, error) {
 	stmt, err := d.DB.Prepare("SELECT id, parent_id, name, file_size, message_id, file_id, created_at, updated_at FROM file_entities WHERE id = ?")
 	if err != nil {
