@@ -19,7 +19,11 @@ type Bot struct {
 }
 
 func (b *Bot) SaveDirectory(parentId int, name string) (entity.FilesystemEntity, error) {
-	msg := tgbotapi.NewMessage(config.TelegramCfg.ChatId, name)
+	msg := tgbotapi.NewMessage(config.TelegramCfg.ChatId, fmt.Sprintf(
+		"%s %s",
+		name,
+		strconv.FormatInt(int64(parentId), 10),
+	))
 	message, err := b.api.Send(msg)
 	if err != nil {
 		return entity.FilesystemEntity{}, fmt.Errorf("couldn't send message: %w", err)
@@ -44,6 +48,42 @@ func (b *Bot) SaveDirectory(parentId int, name string) (entity.FilesystemEntity,
 }
 
 func (b *Bot) UpdateEntity(filesystemEntity entity.FilesystemEntity) error {
+	if filesystemEntity.IsDirectory() {
+		msg := tgbotapi.NewEditMessageText(
+			config.TelegramCfg.ChatId,
+			filesystemEntity.MessageID,
+			fmt.Sprintf("%s %s", filesystemEntity.Name, strconv.FormatInt(int64(filesystemEntity.ParentId), 10)),
+		)
+		_, err := b.api.Send(msg)
+		if err != nil {
+			return fmt.Errorf("couldn't send message: %w", err)
+		}
+		return b.db.UpdateEntity(filesystemEntity)
+	}
+
+	content, err := b.ReadFile(filesystemEntity.Id)
+	if err != nil {
+		return fmt.Errorf("couldn't read file: %w", err)
+	}
+
+	file := tgbotapi.FileBytes{
+		Name:  filesystemEntity.Name,
+		Bytes: content,
+	}
+
+	doc := tgbotapi.NewDocument(config.TelegramCfg.ChatId, file)
+	doc.Caption = strconv.FormatInt(int64(filesystemEntity.ParentId), 10)
+
+	message, err := b.api.Send(doc)
+	if err != nil {
+		return fmt.Errorf("couldn't send message: %w", err)
+	}
+
+	filesystemEntity.Size = message.Document.FileSize
+	filesystemEntity.MessageID = message.MessageID
+	filesystemEntity.FileID = message.Document.FileID
+	filesystemEntity.UpdatedAt = message.Time()
+
 	return b.db.UpdateEntity(filesystemEntity)
 }
 
